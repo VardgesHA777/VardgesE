@@ -1,0 +1,8 @@
+{
+  "projects": {
+    "mobile-dev": "maintainers-mobile",
+    "mobile-stage": "opp-mobile-stage",
+    "mobile-master": "opp-mobile-prod"
+  },
+  "targets": {}
+}

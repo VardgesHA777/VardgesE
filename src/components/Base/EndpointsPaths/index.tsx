@@ -1,0 +1,14 @@
+export const application = 'animal';
+export const complaint = 'complaint';
+export const uploadFile = 'uploadFile';
+export const maintainer = 'maintainer';
+export const user = 'user';
+export const intro = 'intro';
+export const signIn = 'signIn';
+export const signOut = 'signOut';
+export const rental = 'rental';
+export const units = 'units';
+export const animal = 'animal';
+export const params = 'params';
+export const name = 'name';
+export const all = 'all';

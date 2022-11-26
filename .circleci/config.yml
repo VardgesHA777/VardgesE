@@ -1,0 +1,92 @@
+version: 2.1
+jobs:
+    build:
+        docker:
+            - image: cimg/node:14.19
+        working_directory: ~/repo
+        steps:
+            - checkout
+            # Download and cache dependencies
+            - restore_cache:
+                  keys:
+                      - v1-dependencies-{{ checksum "package-lock.json" }}
+                      - v1-dependencies-
+            - run:
+                  name: Install Dependencies
+                  command: npm ci
+            - save_cache:
+                  key: v1-dependencies-{{ checksum "package-lock.json" }}
+                  paths:
+                      - ./node_modules
+            - run:
+                  name: Initializing React variables
+                  command: |
+                      echo REACT_APP_BUCKET_NAME=$BUCKET_NAME >> .env.production
+                      echo REACT_APP_BUCKET_REGION=$BUCKET_REGION >> .env.production
+                      echo REACT_APP_COGNITO_REGION=$COGNITO_REGION >> .env.production
+                      echo REACT_APP_COGNITO_WEB_CLIENT_ID=$COGNITO_WEB_CLIENT_ID >> .env.production
+                      echo REACT_APP_COGNITO_USER_POOL_ID=$COGNITO_USER_POOL_ID >> .env.production
+                      echo REACT_APP_STRIPE_PUBLIC_KEY=$STRIPE_PUBLIC_KEY >> .env.production
+                      echo REACT_APP_HOSTNAME=$HOST_URL >> .env.production
+            - run:
+                  name: Build
+                  command: cat ./.env.production ; CI= && npm run build
+            - persist_to_workspace:
+                root: .
+                paths:
+                  - build/
+                  - node_modules/
+                  - firebase.json
+                  - .firebaserc
+    deploy:
+        docker:
+            - image: cimg/node:14.19
+        working_directory: ~/repo
+        steps:
+          - attach_workspace:
+              at: ./
+          - run:
+              name: Install firebase
+              command: npm install firebase-tools
+          - run:
+              name: Firebase Deploy
+              command: |
+                PROJECT_NAME=mobile-${CIRCLE_BRANCH}
+                echo "Deploy the project $PROJECT_NAME"
+                ./node_modules/.bin/firebase deploy --token "$FIREBASE_TOKEN" --only hosting --non-interactive -P ${PROJECT_NAME} 
+
+workflows:
+  build-and-deploy-dev:
+    when:
+      equal: [dev, << pipeline.git.branch >>]
+    jobs:
+      - build:
+          context: dev-ctx
+      - deploy:
+          context: dev-ctx
+          requires:
+            - build
+  build-and-deploy-stage:
+    when:
+      equal: [stage, << pipeline.git.branch >>]
+    jobs:
+      - build:
+          context: stage-ctx
+      - deploy:
+          context: stage-ctx
+          requires:
+            - build
+  build-and-deploy-master:
+    when:
+      equal: [master, << pipeline.git.branch >>]
+    jobs:
+      - build:
+          context: prod-ctx
+      - approval:
+          type: approval
+          requires:
+            - build
+      - deploy:
+          context: prod-ctx
+          requires:
+            - approval
